@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{TITLE}} · Club Stylist Content Lab</title>
+<meta name="description" content="{{DESCRIPTION}}">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Karla:ital,wght@0,400;0,500;0,700;1,400&display=swap">
+<link rel="stylesheet" href="../../assets/lab.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="brand" href="../../">taya<span>.</span>hair · Content Lab</a>
+    <nav><a href="../../">All editions</a></nav>
+  </div>
+
+  <header>
+    <div class="eyebrow" id="week"></div>
+    <h1 id="title"></h1>
+    <p class="lede" id="lede"></p>
+    <p style="margin-top:10px"><span class="spot" id="spot"></span></p>
+  </header>
+
+  <section id="radar-sec">
+    <div class="sec-head"><h2>This week's content radar</h2><p>What's moving right now, with the evidence. Labels say how sure we are.</p></div>
+    <div class="radar" id="radar"></div>
+  </section>
+
+  <section id="ideas-sec">
+    <div class="sec-head"><h2>The ideas</h2><p>Open a card for the full guide. Tick “Add to my week” and a filming checklist builds itself at the bottom.</p></div>
+    <div class="filters" role="group" aria-label="Filter ideas">
+      <div class="frow"><span class="lbl">For</span>
+        <button class="chip" data-g="aud" data-v="all" aria-pressed="true">All</button>
+        <button class="chip" data-g="aud" data-v="clients" aria-pressed="false">Clients</button>
+        <button class="chip" data-g="aud" data-v="stylists" aria-pressed="false">Stylists</button>
+        <button class="chip" data-g="aud" data-v="both" aria-pressed="false">Both</button></div>
+      <div class="frow"><span class="lbl">Film it</span>
+        <button class="chip" data-g="cam" data-v="all" aria-pressed="true">All</button>
+        <button class="chip" data-g="cam" data-v="no-face" aria-pressed="false">No face</button>
+        <button class="chip" data-g="cam" data-v="hands" aria-pressed="false">Hands only</button>
+        <button class="chip" data-g="cam" data-v="voiceover" aria-pressed="false">Voiceover</button>
+        <button class="chip" data-g="cam" data-v="on-camera" aria-pressed="false">On camera</button></div>
+      <div class="frow"><span class="lbl">Effort</span>
+        <button class="chip" data-g="eff" data-v="all" aria-pressed="true">All</button>
+        <button class="chip" data-g="eff" data-v="low" aria-pressed="false">Low</button>
+        <button class="chip" data-g="eff" data-v="medium" aria-pressed="false">Medium</button>
+        <button class="chip" data-g="eff" data-v="high" aria-pressed="false">Bigger project</button></div>
+    </div>
+    <div class="count" id="count"></div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section id="next-sec">
+    <div class="sec-head"><h2>Film this at your next appointment</h2><p>No planning needed. Capture these during a normal service.</p></div>
+    <div class="mini" id="next"></div>
+  </section>
+
+  <section id="exp-sec">
+    <div class="sec-head"><h2>The creative experiment</h2><p>One idea we haven't seen proven yet. Worth a try.</p></div>
+    <div class="experiment" id="experiment"></div>
+  </section>
+
+  <section id="insp-sec">
+    <div class="sec-head"><h2>Real content inspiration</h2><p>The posts behind this week's thinking. Learn the principle, don't copy the video.</p></div>
+    <div class="mini" id="insp"></div>
+  </section>
+
+  <div class="checklist" id="checklist" hidden>
+    <div class="bar"><strong>My week</strong><span id="pickcount"></span>
+      <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="toggle-checklist">Show my checklist</button><button class="btn primary" id="copy-checklist" data-copy="">Copy checklist</button><button class="btn small" id="clear-picks">Clear</button></span></div>
+    <div class="body" id="checklist-body"></div>
+  </div>
+
+  <footer><span>Club Stylist Content Lab · taya.hair</span><span>Public numbers read on {{RESEARCHED}}. Links go to the original creators.</span></footer>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>window.EDITION = {{DATA}};</script>
+<script src="../../assets/lab.js"></script>
+</body>
+</html>
