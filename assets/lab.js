@@ -61,7 +61,7 @@
       (insp ? '<div class="block full insp"><h5>What informed this</h5><ul>' + insp + '</ul>' + (i.inspiration_note ? '<p class="note">' + esc(i.inspiration_note) + '</p>' : '') + '</div>' : '') +
       '</div></article>';
   }
-  $('#grid').innerHTML = ideas.map(card).join('');
+  $('#grid').innerHTML = ideas.map(function (i, n) { return card(i, n + 1); }).join('');
 
   /* expand / collapse */
   $$('.card-toggle').forEach(function (b) {

@@ -15,6 +15,7 @@
   --bg:#15110e; --fg:#efe6da; --muted:#b3a393; --line:#332a22; --card:#1f1813; --card2:#28201a;
   --accent:#d9a056; --accent-ink:#15110e; --chip:#2b231c; --chip-on:#efe6da; --chip-on-ink:#15110e; --ok:#7fbf8e; color-scheme:dark }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.5;margin:0}
 a{color:var(--accent)}
@@ -97,7 +98,6 @@ section{margin-top:34px}
 
 /* checklist panel */
 .checklist{position:sticky;bottom:0;background:var(--card);border:1px solid var(--line);border-radius:var(--radius) var(--radius) 0 0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));margin-top:28px;box-shadow:0 -6px 24px rgba(0,0,0,.08)}
-.checklist[hidden]{display:none}
 .checklist .bar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .checklist .bar strong{font-family:var(--display);font-size:22px;letter-spacing:.03em;font-weight:400}
 .checklist .body{margin-top:10px;display:none}
