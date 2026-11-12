@@ -1,163 +1,121 @@
-/* Club Stylist Content Lab — edition renderer.
-   Expects window.EDITION (injected by build.py). Member state (picked ideas, checklist ticks)
-   lives in their own browser's localStorage. Original-post previews use the platforms' official
-   embed scripts and load only when a member asks for them. */
+/* Content Lab member page. Expects window.EDITION (v3). Renders approved ideas, strongest first.
+   Reference posts: a designed tile by default; on the live site the official Instagram embed
+   loads lazily when the card scrolls into view, and replaces the tile only if it renders. */
 (function () {
   var E = window.EDITION; if (!E) return;
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
-  var key = 'lab:' + E.slug;
-  var store = { get: function () { try { return JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) { return {}; } }, set: function (v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { } } };
-  var state = store.get(); state.picked = state.picked || []; state.ticks = state.ticks || {};
-
-  var AUD = { clients: 'For clients', stylists: 'For stylists', both: 'Clients + stylists' };
-  var CAM = { 'no-face': 'No face', 'hands': 'Hands only', 'voiceover': 'Voiceover', 'on-camera': 'On camera' };
-  var EFF = { low: 'Low effort', medium: 'Medium effort', high: 'Bigger project' };
-
-  function toast(msg) { var t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 1400); }
-  function copy(text, btn) {
-    var done = function () { toast('Copied'); if (btn) { var o = btn.textContent; btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = o; }, 1200); } };
-    function fallback() { var ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.left = '-9999px'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) { toast('Select and copy manually'); } document.body.removeChild(ta); }
-    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(done, fallback); } else { fallback(); }
+  var list = function (a, ol) { return !a || !a.length ? '' : '<' + (ol ? 'ol' : 'ul') + '>' + a.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</' + (ol ? 'ol' : 'ul') + '>'; };
+  function toast(m) { var t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 1400); }
+  function copy(text) {
+    var done = function () { toast('Filming plan copied'); };
+    var fb = function () { var ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.left = '-9999px'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) { toast('Select and copy manually'); } document.body.removeChild(ta); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fb); else fb();
   }
-  function kindLabel(k) { return { verified: 'Verified', observed: 'Observed pattern', hypothesis: 'Informed hypothesis', experiment: 'Creative experiment' }[k] || ''; }
-  function list(items, ol) { if (!items || !items.length) return ''; return '<' + (ol ? 'ol' : 'ul') + '>' + items.map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</' + (ol ? 'ol' : 'ul') + '>'; }
-  function linkList(links) { if (!links || !links.length) return ''; return '<div class="links">' + links.map(function (l) { return '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.label) + '</a>'; }).join('') + '</div>'; }
+  var AUD = { clients: 'for clients', stylists: 'for stylists', both: 'for clients and stylists' };
 
-  /* header */
-  $('#week').textContent = E.week_label; $('#title').textContent = E.title; $('#lede').textContent = E.lede || '';
-  if (E.spotlight) { $('#spot').innerHTML = 'Spotlight: <span>' + esc(E.spotlight) + '</span>'; } else { $('#spot').hidden = true; }
+  $('#week').textContent = E.week_label; $('#title').textContent = E.title || 'Content Lab'; $('#lede').textContent = E.lede || '';
+  var ideas = (E.ideas || []).filter(function (i) { return E.preview ? i.preview_rank : i.status === 'approved'; });
+  ideas.sort(function (a, b) { return (a.preview_rank || a.rank || 99) - (b.preview_rank || b.rank || 99); });
 
-  /* radar: three concise insights, the rest and the detail behind a toggle */
-  var radar = E.radar || [];
-  $('#radar').innerHTML = radar.map(function (r, i) {
-    return '<article' + (i >= 3 ? ' class="extra" hidden' : '') + '><h4>' + esc(r.headline) + (r.kind ? '<span class="kind">' + kindLabel(r.kind) + '</span>' : '') + '</h4>' +
-      '<p class="short">' + esc(r.short || r.detail) + '</p>' +
-      '<div class="more" hidden><p>' + esc(r.detail) + '</p>' + linkList(r.links) + '</div>' +
-      '<button class="linkbtn radar-more" aria-expanded="false">Evidence</button></article>';
-  }).join('');
-  if (radar.length > 3) { var mb = $('#radar-toggle'); mb.hidden = false; mb.textContent = 'Show ' + (radar.length - 3) + ' more'; mb.addEventListener('click', function () { var open = mb.getAttribute('aria-expanded') === 'true'; $$('#radar .extra').forEach(function (a) { a.hidden = open; }); mb.setAttribute('aria-expanded', open ? 'false' : 'true'); mb.textContent = open ? 'Show ' + (radar.length - 3) + ' more' : 'Show fewer'; }); }
-  $$('.radar-more').forEach(function (b) { b.addEventListener('click', function () { var m = $('.more', b.closest('article')), open = m.hidden; m.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false'); b.textContent = open ? 'Hide evidence' : 'Evidence'; }); });
-
-  /* ideas */
-  var ideas = E.ideas || [];
-  function card(i, n) {
-    var picked = state.picked.indexOf(i.id) > -1;
-    var cam = (i.camera || []).map(function (c) { return CAM[c] || c; }).join(' · ');
-    var hooks = (i.hooks || []).map(function (h) { return '<div class="hook"><em>' + esc(h) + '</em><button class="btn small" data-copy="' + esc(h) + '">Copy</button></div>'; }).join('');
-    var film = i.film || {};
-    var insp = (i.inspiration || []).map(function (s) { return '<li><a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.label) + '</a>' + (s.note ? ' — ' + esc(s.note) : '') + '</li>'; }).join('');
-    var tp = (i.talking_points || []);
-    return '<article class="idea" id="idea-' + esc(i.id) + '" data-aud="' + esc(i.audience) + '" data-cam="' + esc((i.camera || []).join(' ')) + '" data-eff="' + esc(i.effort) + '">' +
-      '<div class="top"><span class="num">' + n + '</span><h3>' + esc(i.title) + '</h3></div>' +
-      '<div class="tags"><span class="tag aud">' + esc(AUD[i.audience] || i.audience) + '</span><span class="tag eff-' + esc(i.effort) + '">' + esc(EFF[i.effort] || i.effort) + '</span></div>' +
-      '<p class="hookprev">“' + esc(i.hook_preview || (i.hooks && i.hooks[0]) || '') + '”</p>' +
-      '<p>' + esc(i.summary) + '</p>' +
-      '<p class="meta">' + esc([i.format, cam, i.specialty].filter(Boolean).join(' · ')) + '</p>' +
-      '<div class="actions"><button class="btn card-toggle" aria-expanded="false">Full guide</button><label class="pick"><input type="checkbox" data-pick="' + esc(i.id) + '"' + (picked ? ' checked' : '') + '> Add to my week</label></div>' +
+  function plan(i) { return i.title.toUpperCase() + '\nHook: ' + i.hook + '\n\n' + i.steps.map(function (s, n) { return (n + 1) + '. ' + s; }).join('\n') + (i.guide && i.guide.shots ? '\n\nShots:\n' + i.guide.shots.map(function (s) { return '- ' + s; }).join('\n') : ''); }
+  function card(i) {
+    var r = i.ref || {}; var g = i.guide || {};
+    return '<article class="idea fold" id="' + esc(i.id) + '"><div class="head" role="button" tabindex="0" aria-expanded="false">' +
+      '<div class="cpv">' + esc(i.cpv) + ' · ' + esc(AUD[i.audience] || i.audience) + (i.experiment ? ' · <span class="exp">Original experiment</span>' : '') + '</div>' +
+      '<h2>' + esc(i.title) + '</h2>' +
+      (i.principle ? '<p class="principle">' + esc(i.principle) + '</p>' : '') +
+      (i.drivers ? '<p class="drivers">' + (i.format ? '<b>' + esc(i.format) + '</b> · ' : '') + i.drivers.map(esc).join(' · ') + '</p>' : '') +
+      '<span class="chev"><span class="o">Open idea</span><span class="c">Close idea</span></span></div><div class="body" hidden>' +
+      (r.anon ? '<div class="ref anon"><div class="tile"><div class="lbl">What performed</div><div class="q">' + esc(r.headline) + '</div><p class="desc">' + esc(r.desc) + '</p>' + (r.numbers ? '<div class="ev">' + esc(r.numbers) + '</div>' : '') + '</div></div>' :
+      '<div class="ref' + (r.still ? ' has-still' : '') + '" data-url="' + esc(r.url) + '">' + (r.still ? '<a class="still" href="' + esc(r.url) + '" target="_blank" rel="noopener" aria-label="Open the original post"><img src="' + esc(r.still) + '" alt="' + esc(r.still_alt || ('Opening frame of the reference post by ' + r.creator)) + '" loading="lazy"></a>' : '') + '<div class="tile"><div class="q">“' + esc(r.line) + '”</div><div class="who">' + esc(r.creator) + ' · ' + esc(r.platform) + (r.date ? ' · ' + esc(r.date) : '') + '</div>' + (i.evidence && (i.evidence.views || i.evidence.likes) ? '<div class="ev">' + [i.evidence.views ? esc(i.evidence.views) + ' views' : '', i.evidence.likes ? esc(i.evidence.likes) + ' likes' : '', esc(i.evidence.relative || '')].filter(Boolean).join(' · ') + '</div>' : '') + '<a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + (i.experiment ? 'See what inspired it ↗' : 'Watch the original post ↗') + '</a></div><div class="embed"></div></div>') +
+      (i.dissection ? '<div class="dissect"><h3>Why it worked</h3><dl>' + i.dissection.map(function (d) { return '<dt>' + esc(d[0]) + '</dt><dd>' + esc(d[1]) + '</dd>'; }).join('') + '</dl></div><h3 class="mine">Make your own</h3>' : '') +
+      '<p class="concept">' + esc(i.concept) + '</p>' +
+      '<div class="hook"><b>Open with</b>“' + esc(i.hook) + '”</div>' +
+      '<ol class="steps">' + (i.steps || []).map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>' +
+      '<div class="actions"><button class="btn primary copy">Copy filming plan</button><button class="btn more" aria-expanded="false">Full guide</button></div>' +
       '<div class="guide" hidden>' +
-      '<div class="block full"><h5>The concept</h5><p>' + esc(i.concept) + '</p></div>' +
-      '<div class="block full"><h5>Why this idea</h5><p>' + esc(i.why) + '</p></div>' +
-      '<div class="block full"><h5>Two ways in</h5><div class="hooks">' + hooks + '</div></div>' +
-      '<div class="block"><h5>What to film</h5>' + (film.essential ? '<p class="note">Essential</p>' + list(film.essential, true) : '') + (film.nice && film.nice.length ? '<p class="note">If you can</p>' + list(film.nice) : '') + (film.skip && film.skip.length ? '<p class="note">Skip</p>' + list(film.skip) : '') + '</div>' +
-      '<div class="block"><h5>Structure</h5>' + list(i.structure, true) + '</div>' +
-      (tp.length ? '<div class="block"><h5>Talking points <button class="btn small" data-copy="' + esc(tp.join('\n')) + '">Copy</button></h5>' + list(tp) + '</div>' : '') +
-      (i.voiceover ? '<div class="block"><h5>Sample voiceover <button class="btn small" data-copy="' + esc(i.voiceover) + '">Copy</button></h5><div class="vo">' + esc(i.voiceover) + '</div><p class="note">A starting point in a generic voice. Say it your way.</p></div>' : '') +
-      (i.caption ? '<div class="block"><h5>Caption</h5><p>' + esc(i.caption.goal || '') + '</p>' + (i.caption.example ? '<p class="note">Example opening: “' + esc(i.caption.example) + '”</p>' : '') + '</div>' : '') +
-      (i.adapt && i.adapt.length ? '<div class="block"><h5>Make it yours</h5>' + list(i.adapt) + '</div>' : '') +
-      (insp ? '<div class="block full insp"><h5>What informed this</h5><ul>' + insp + '</ul>' + (i.inspiration_note ? '<p class="note">' + esc(i.inspiration_note) + '</p>' : '') + '</div>' : '') +
-      '<div class="block full"><button class="btn card-toggle">Close guide</button></div>' +
+      '<div><h3>Another way in</h3><p>“' + esc(i.hook2) + '”</p></div>' +
+      '<div><h3>Shot list</h3>' + list(g.shots) + '</div>' +
+      '<div><h3>Structure</h3>' + list(g.structure, true) + '</div>' +
+      '<div><h3>What to say</h3>' + list(g.talking) + '</div>' +
+      '<div><h3>Caption</h3><p>' + esc(g.caption) + '</p></div>' +
+      '<div><h3>Make it yours</h3>' + list(g.adapt) + '</div>' +
+      (g.text_to_client ? '<div><h3>Text to send your client</h3><p>' + esc(g.text_to_client) + '</p></div>' : '') +
+      (r.anon ? '' : '<div class="why"><h3>' + (i.experiment ? 'Where the idea comes from' : 'Why the reference worked') + '</h3><p>' + esc(r.why) + ' <a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + (i.experiment ? 'Open the source ↗' : 'Open the post ↗') + '</a></p></div>') +
+      '<div class="actions"><button class="btn more">Close guide</button></div>' +
+      '</div></div></article>';
+  }
+  var insp = (E.inspiration || []).filter(function (x) { return E.demo_inspiration ? x.status !== 'rejected' : x.status === 'approved'; });
+  function tile(v, link) { v = v || {}; if (v.still) { return '<a class="itile img" href="' + esc(link || '#') + '" target="_blank" rel="noopener"><img src="' + esc(v.still) + '" alt="' + esc(v.alt || 'Reference image') + '" loading="lazy"><div class="icap">' + (v.sub ? '<div class="isub">' + esc(v.sub) + '</div>' : '') + '</div></a>'; }
+    return '<div class="itile ' + esc(v.style || 'plain') + '"><div class="ihead">' + esc(v.headline || '') + '</div>' + (v.sub ? '<div class="isub">' + esc(v.sub) + '</div>' : '') + '</div>'; }
+  function icard(x) {
+    var s = x.seen || {}; var src = s.source || {}; var a = x.application || {}; var g = a.guide || {};
+    var hasIdea = a.hook && a.steps && a.steps.length;
+    return '<article class="idea insp fold" id="' + esc(x.id) + '"><div class="head" role="button" tabindex="0" aria-expanded="false">' +
+      '<div class="cpv">' + (x.kind === 'trend' ? 'Emerging trend' : 'Creative observation') + ' · creative experiment</div>' +
+      '<h2>' + esc(x.title) + '</h2>' + '<span class="chev"><span class="o">Open idea</span><span class="c">Close idea</span></span></div><div class="body" hidden>' +
+      tile(x.visual, (x.seen && x.seen.example && x.seen.example.url) || (s && s.source && s.source.url)) +
+      '<p class="concept"><b>What\'s happening.</b> ' + esc(s.what) + ' ' + esc(s.why) + (src.url ? ' <a class="src" href="' + esc(src.url) + '" target="_blank" rel="noopener">' + esc(x.kind === 'trend' ? 'Reported by ' : 'Seen at ') + esc(src.name) + (src.date ? ', ' + esc(src.date) : '') + ' ↗</a>' : '') + (s.example && s.example.url ? ' <a class="src" href="' + esc(s.example.url) + '" target="_blank" rel="noopener">' + esc(s.example.name) + ' ↗</a>' : '') + '</p>' +
+      '<p class="concept"><b>For a hairstylist.</b> ' + esc(a.concept) + '</p>' +
+      (hasIdea ? '<div class="hook"><b>Open with</b>“' + esc(a.hook) + '”</div>' +
+        '<ol class="steps">' + a.steps.map(function (st) { return '<li>' + esc(st) + '</li>'; }).join('') + '</ol>' +
+        '<div class="actions"><button class="btn primary copy">Copy filming plan</button><button class="btn more" aria-expanded="false">Full guide</button></div>' +
+        '<div class="guide" hidden>' +
+        (a.hook2 ? '<div><h3>Another way in</h3><p>“' + esc(a.hook2) + '”</p></div>' : '') +
+        '<div><h3>Shot list</h3>' + list(g.shots) + '</div>' +
+        '<div><h3>Structure</h3>' + list(g.structure, true) + '</div>' +
+        '<div><h3>What to say</h3>' + list(g.talking) + '</div>' +
+        '<div><h3>Caption</h3><p>' + esc(g.caption) + '</p></div>' +
+        '<div><h3>Make it yours</h3>' + list(g.adapt) + '</div>' +
+        (g.not ? '<div><h3>What it isn\'t</h3><p>' + esc(g.not) + '</p></div>' : '') +
+        '<div class="actions"><button class="btn more">Close guide</button></div>' +
+        '</div>' : '') +
       '</div></article>';
   }
-  $('#grid').innerHTML = ideas.map(function (i, n) { return card(i, n + 1); }).join('');
-
-  /* expand / collapse */
-  $$('.card-toggle').forEach(function (b) {
-    b.addEventListener('click', function () {
-      var art = b.closest('.idea'), g = $('.guide', art), open = g.hidden, head = $('.actions .card-toggle', art);
-      g.hidden = !open; art.classList.toggle('open', open); head.setAttribute('aria-expanded', open ? 'true' : 'false'); head.textContent = open ? 'Close guide' : 'Full guide';
-      if (open) art.scrollIntoView({ block: 'start', behavior: 'smooth' }); else head.focus();
-    });
+  function src(a) { return (a || []).map(function (x) { return '<a href="' + esc(x.url) + '" target="_blank" rel="noopener">' + esc(x.name) + ' ↗</a>'; }).join(' · '); }
+  var upd = (E.updates || []).length ? '<section class="updates"><div class="eyebrow">On Instagram this week</div>' + E.updates.map(function (u) { return '<div class="upd"><h3>' + esc(u.title) + '</h3><p>' + esc(u.what) + '</p><p class="so"><b>For you:</b> ' + esc(u.so_what) + '</p><p class="src">' + src(u.sources) + '</p></div>'; }).join('') + '</section>' : '';
+  var T = E.trends; var tmax = T ? Math.max.apply(null, T.groups.reduce(function (a, g) { return a.concat(g.items.map(function (it) { return parseFloat(String(it[1]).replace(/[^0-9.]/g, '')) || 0; })); }, [])) : 1;
+  var trends = T ? '<section class="idea trends"><div class="cpv">Trends · what clients type</div><h2>What clients are searching</h2><p class="principle">' + esc(T.intro) + '</p><div class="tgrid">' + T.groups.map(function (g) { var gmax = Math.max.apply(null, g.items.map(function (it) { return parseFloat(String(it[1]).replace(/[^0-9.]/g, '')) || 0; })) || 1; return '<div class="tg"><h3>' + esc(g.label) + '</h3><ul>' + g.items.map(function (it) { var v = parseFloat(String(it[1]).replace(/[^0-9.]/g, '')) || 0; return '<li><div class="trow"><span>' + esc(it[0]) + '</span><b>' + esc(it[1]) + '</b></div><div class="bar"><i style="width:' + Math.max(6, Math.round(v / gmax * 100)) + '%"></i></div></li>'; }).join('') + '</ul></div>'; }).join('') + '</div><div class="hook use"><b>The pattern</b>' + esc(T.takeaway) + '</div><p class="tsrc">Change in searches · ' + src([T.source]) + '</p></section>' : '';
+  var ideaHead = (E.updates || E.trends) ? '<div class="eyebrow ideas-eyebrow">This week\'s ideas</div>' : '';
+  $('#ideas').innerHTML = upd + ideaHead + ideas.map(card).join('') + trends + (insp.length ? '<section class="fresh"><div class="eyebrow">Fresh inspiration</div><p class="lede small">From outside hair: one or two things happening in fashion, photography, design or culture, and one original way to use them. Experiments, not proven posts.</p>' + insp.map(icard).join('') + '</section>' : '');
+  var all = ideas.concat(insp.map(function (x) { var a = x.application || {}; return { id: x.id, title: x.title, hook: a.hook, steps: a.steps || [], guide: a.guide }; }));
+  $$('.idea.fold').forEach(function (a) {
+    var h = $('.head', a), body = $('.body', a);
+    function toggle() { var open = body.hidden; body.hidden = !open; a.classList.toggle('open', open); h.setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) { $$('.ref', a).forEach(function (r) { if (window.__hydrate) window.__hydrate(r); }); } else { a.scrollIntoView({ block: 'nearest' }); } }
+    h.addEventListener('click', toggle);
+    h.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   });
-  document.addEventListener('click', function (e) { var b = e.target.closest('[data-copy]'); if (b) copy(b.getAttribute('data-copy'), b); });
+  if (location.hash) { var tgt = document.getElementById(location.hash.slice(1)); if (tgt && tgt.classList.contains('fold')) $('.head', tgt).click(); }
+  $$('.idea:not(.trends)').forEach(function (a, n) {
+    var i = all[n]; if (!$('.copy', a)) return;
+    $('.copy', a).addEventListener('click', function () { copy(plan(i)); });
+    $$('.more', a).forEach(function (b) { b.addEventListener('click', function () { var g = $('.guide', a), open = g.hidden; g.hidden = !open; var head = $('.actions .more', a); head.setAttribute('aria-expanded', open ? 'true' : 'false'); head.textContent = open ? 'Close guide' : 'Full guide'; if (!open) a.scrollIntoView({ block: 'start', behavior: 'smooth' }); }); });
+  });
 
-  /* filters */
-  var F = { aud: 'all', cam: 'all', eff: 'all' };
-  function applyFilters() {
-    var n = 0;
-    $$('.idea').forEach(function (a) {
-      var ok = (F.aud === 'all' || a.dataset.aud === F.aud || (F.aud !== 'both' && a.dataset.aud === 'both')) &&
-               (F.cam === 'all' || (' ' + a.dataset.cam + ' ').indexOf(' ' + F.cam + ' ') > -1) &&
-               (F.eff === 'all' || a.dataset.eff === F.eff);
-      a.hidden = !ok; if (ok) n++;
-    });
-    $('#count').textContent = n === ideas.length ? 'Showing all ' + n + ' ideas' : 'Showing ' + n + ' of ' + ideas.length + ' ideas';
-    $$('.chip').forEach(function (c) { c.setAttribute('aria-pressed', F[c.dataset.g] === c.dataset.v ? 'true' : 'false'); });
+  /* lazy official embeds (live site only; blocked inside a Claude artifact, where the tile stays) */
+  var scriptState = null;
+  function loadEmbedScript(cb) {
+    if (scriptState === 'ok') return cb(true); if (scriptState === 'fail') return cb(false);
+    if (scriptState === 'loading') { return setTimeout(function () { loadEmbedScript(cb); }, 300); }
+    scriptState = 'loading'; var s = document.createElement('script'); s.src = 'https://www.instagram.com/embed.js'; s.async = true;
+    var t = setTimeout(function () { if (scriptState === 'loading') { scriptState = 'fail'; cb(false); } }, 6000);
+    s.onload = function () { clearTimeout(t); scriptState = 'ok'; cb(true); }; s.onerror = function () { clearTimeout(t); scriptState = 'fail'; cb(false); };
+    document.body.appendChild(s);
   }
-  $$('.chip').forEach(function (c) { c.addEventListener('click', function () { F[c.dataset.g] = c.dataset.v; applyFilters(); }); });
-  applyFilters();
-
-  /* next appointment + experiment */
-  var next = ideas.filter(function (i) { return i.next_appointment; });
-  $('#next').innerHTML = next.map(function (i) { return '<article><h4>' + esc(i.title) + '</h4><p>' + esc(i.next_note || i.summary) + '</p><a class="jump" href="#idea-' + esc(i.id) + '">Open the guide →</a></article>'; }).join('');
-  if (!next.length) $('#next-sec').hidden = true;
-  var ex = ideas.filter(function (i) { return i.experiment; })[0];
-  if (ex) { $('#experiment').innerHTML = '<h4>' + esc(ex.title) + '</h4><p>' + esc(ex.summary) + '</p><p>' + esc(ex.experiment_note || ex.why) + '</p><p><a class="jump" href="#idea-' + esc(ex.id) + '">Open the guide →</a></p>'; } else { $('#exp-sec').hidden = true; }
-
-  /* inspiration: visual tiles with on-demand official embeds */
-  function tiktokId(u) { var m = /video\/(\d+)/.exec(u || ''); return m ? m[1] : ''; }
-  $('#insp').innerHTML = (E.inspiration || []).map(function (s, idx) {
-    var pl = (s.platform || '').toLowerCase();
-    return '<article class="tile" data-i="' + idx + '"><div class="tile-top"><span class="plat ' + (pl.indexOf('tik') > -1 ? 'tt' : 'ig') + '">' + esc(s.platform) + '</span><span class="note">' + esc([s.date, s.metrics].filter(Boolean).join(' · ')) + '</span></div>' +
-      (s.quote ? '<p class="quote">“' + esc(s.quote) + '”</p>' : '') +
-      '<p class="who"><a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.creator) + '</a></p>' +
-      '<p>' + esc(s.what) + '</p><p class="learn"><b>Take from it:</b> ' + esc(s.learn) + '</p>' +
-      '<div class="actions"><button class="btn small preview-btn">Preview here</button><a class="btn small" href="' + esc(s.url) + '" target="_blank" rel="noopener">Open original ↗</a></div>' +
-      '<div class="embed" hidden></div></article>';
-  }).join('');
-  var loaded = {};
-  function loadScript(src, cb) { if (loaded[src]) { cb(true); return; } var sc = document.createElement('script'); sc.src = src; sc.async = true; var done = false; sc.onload = function () { done = true; loaded[src] = true; cb(true); }; sc.onerror = function () { done = true; cb(false); }; setTimeout(function () { if (!done) cb(false); }, 6000); document.body.appendChild(sc); }
-  $$('.preview-btn').forEach(function (b) {
-    b.addEventListener('click', function () {
-      var art = b.closest('.tile'), s = (E.inspiration || [])[+art.dataset.i], box = $('.embed', art);
-      if (!box.hidden) { box.hidden = true; box.innerHTML = ''; b.textContent = 'Preview here'; return; }
-      box.hidden = false; b.textContent = 'Loading…';
-      var fail = function () { box.innerHTML = '<p class="note">Preview can\'t load here. <a href="' + esc(s.url) + '" target="_blank" rel="noopener">Open it on ' + esc(s.platform) + ' ↗</a></p>'; b.textContent = 'Close preview'; };
-      if ((s.platform || '').toLowerCase().indexOf('tik') > -1) {
-        var id = tiktokId(s.url); if (!id) { fail(); return; }
-        box.innerHTML = '<blockquote class="tiktok-embed" cite="' + esc(s.url) + '" data-video-id="' + esc(id) + '" style="max-width:605px;min-width:325px"><section></section></blockquote>';
-        loadScript('https://www.tiktok.com/embed.js', function (ok) { if (!ok) { fail(); return; } b.textContent = 'Close preview'; setTimeout(function () { if (!box.hidden && !box.querySelector('iframe')) fail(); }, 9000); });
-      } else {
-        box.innerHTML = '<blockquote class="instagram-media" data-instgrm-permalink="' + esc(s.url) + '" data-instgrm-version="14" style="margin:0;max-width:540px;min-width:280px;width:100%"></blockquote>';
-        loadScript('https://www.instagram.com/embed.js', function (ok) { if (!ok) { fail(); return; } try { window.instgrm && window.instgrm.Embeds && window.instgrm.Embeds.process(); } catch (e) { } b.textContent = 'Close preview'; setTimeout(function () { if (!box.hidden && !box.querySelector('iframe')) fail(); }, 9000); });
-      }
+  function hydrate(ref) {
+    var url = ref.getAttribute('data-url'); if (!url || ref.dataset.done || url.indexOf('instagram.com/') < 0) return; ref.dataset.done = '1';
+    var box = $('.embed', ref); box.innerHTML = '<blockquote class="instagram-media" data-instgrm-permalink="' + esc(url) + '" data-instgrm-version="14" style="margin:0;width:100%;min-width:0"></blockquote>';
+    loadEmbedScript(function (ok) {
+      if (!ok) return;
+      try { window.instgrm && window.instgrm.Embeds && window.instgrm.Embeds.process(); } catch (e) { }
+      var tries = 0; var iv = setInterval(function () { tries++; if (box.querySelector('iframe')) { clearInterval(iv); ref.classList.add('live'); } else if (tries > 20) { clearInterval(iv); } }, 400);
     });
-  });
-
-  /* my week (checklist) */
-  function renderChecklist() {
-    var picked = ideas.filter(function (i) { return state.picked.indexOf(i.id) > -1; });
-    var panel = $('#checklist'); panel.hidden = !picked.length; $('#pickcount').textContent = picked.length + (picked.length === 1 ? ' idea picked' : ' ideas picked');
-    if (!picked.length) return;
-    var html = picked.map(function (i) {
-      var items = (i.film && i.film.essential || []).map(function (s) { var id = i.id + '|' + s; return '<label><input type="checkbox" data-tick="' + esc(id) + '"' + (state.ticks[id] ? ' checked' : '') + '><span>' + esc(s) + '</span></label>'; }).join('');
-      return '<h5>' + esc(i.title) + '</h5><div>' + items + '</div>' + (i.hooks && i.hooks[0] ? '<p class="note">Hook: “' + esc(i.hooks[0].split(' (')[0]) + '”</p>' : '');
-    }).join('');
-    $('#checklist-body').innerHTML = html;
-    var text = picked.map(function (i) { return i.title.toUpperCase() + '\nHook: ' + (i.hooks && i.hooks[0] ? i.hooks[0].split(' (')[0] : '') + '\n' + (i.film && i.film.essential || []).map(function (s) { return '[ ] ' + s; }).join('\n'); }).join('\n\n');
-    $('#copy-checklist').setAttribute('data-copy', 'MY WEEK — ' + E.week_label + '\n\n' + text);
   }
-  document.addEventListener('change', function (e) {
-    var p = e.target.getAttribute && e.target.getAttribute('data-pick');
-    if (p) { var i = state.picked.indexOf(p); if (e.target.checked && i < 0) state.picked.push(p); if (!e.target.checked && i > -1) state.picked.splice(i, 1); store.set(state); renderChecklist(); if (e.target.checked) toast('Added to my week'); }
-    var t = e.target.getAttribute && e.target.getAttribute('data-tick');
-    if (t) { state.ticks[t] = e.target.checked; store.set(state); }
-  });
-  $('#toggle-checklist').addEventListener('click', function () { var p = $('#checklist'); p.classList.toggle('open'); $('#toggle-checklist').textContent = p.classList.contains('open') ? 'Hide' : 'Show my checklist'; });
-  $('#clear-picks').addEventListener('click', function () { state.picked = []; state.ticks = {}; store.set(state); $$('[data-pick]').forEach(function (c) { c.checked = false; }); renderChecklist(); });
-  renderChecklist();
-
-  /* deep link to an idea */
-  if (location.hash && /^#idea-/.test(location.hash)) { var a = $(location.hash); if (a) { $('.card-toggle', a).click(); } }
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { hydrate(e.target); io.unobserve(e.target); } }); }, { rootMargin: '200px' });
+    $$('.ref').forEach(function (r) { io.observe(r); });
+  }
+  if (location.hash) { var t = $(location.hash); if (t) t.scrollIntoView(); }
 })();
