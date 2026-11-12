@@ -21,7 +21,7 @@ def build_edition(slug):
 def build_index():
     idx = load(DATA / "editions.json") if (DATA / "editions.json").exists() else []
     pub = sorted([x for x in idx if x.get("published")], key=lambda x: x["slug"], reverse=True)
-    cards = "".join(f'<a href="editions/{x["slug"]}/"><div class="d">{html.escape(x.get("week_label", x["slug"]))}</div><h3>{html.escape(x.get("title", ""))}</h3><p>{html.escape(x.get("blurb", ""))}</p></a>' for x in pub) or '<p class="lede">The first edition lands Monday.</p>'
+    cards = "".join(f'<a href="editions/{x["slug"]}/"><div class="d">{html.escape(x.get("week_label", x["slug"]))}</div><h3>{html.escape(x.get("title", ""))}</h3><p>{html.escape(x.get("blurb", ""))}</p></a>' for x in pub) or '<p class="lede">The first edition is coming soon.</p>'
     (ROOT / "index.html").write_text((TPL / "index.html").read_text().replace("{{EDITIONS}}", cards)); return len(pub)
 if __name__ == "__main__":
     slugs = sys.argv[1:] or sorted(p.stem for p in DATA.glob("*.json") if p.stem != "editions")
