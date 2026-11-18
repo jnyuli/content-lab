@@ -21,7 +21,12 @@ def build_edition(slug):
 def build_index():
     idx = load(DATA / "editions.json") if (DATA / "editions.json").exists() else []
     pub = sorted([x for x in idx if x.get("published")], key=lambda x: x["slug"], reverse=True)
-    cards = "".join(f'<a href="editions/{x["slug"]}/"><div class="d">{html.escape(x.get("week_label", x["slug"]))}</div><h3>{html.escape(x.get("title", ""))}</h3><p>{html.escape(x.get("blurb", ""))}</p></a>' for x in pub) or '<p class="lede">The first edition is coming soon.</p>'
+    card = lambda x: f'<a href="editions/{x["slug"]}/"><div class="d">{html.escape(x.get("week_label", x["slug"]))}</div><h3>{html.escape(x.get("title", ""))}</h3><p>{html.escape(x.get("blurb", ""))}</p></a>'
+    cards = (('<div class="eyebrow">This week</div>' + card(pub[0]) + ('<div class="eyebrow prev">Previous weeks</div>' + "".join(card(x) for x in pub[1:]) if pub[1:] else '')) if pub else '<p class="lede">The first edition is coming soon.</p>')
+    if pub:  # stable "This week" link used by every edition page
+        (ROOT / "latest").mkdir(exist_ok=True)
+        u = f'../editions/{pub[0]["slug"]}/'
+        (ROOT / "latest" / "index.html").write_text(f'<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>This week</title><meta http-equiv="refresh" content="0; url={u}"><link rel="canonical" href="{u}"><a href="{u}">This week</a>')
     (ROOT / "index.html").write_text((TPL / "index.html").read_text().replace("{{EDITIONS}}", cards)); return len(pub)
 if __name__ == "__main__":
     slugs = sys.argv[1:] or sorted(p.stem for p in DATA.glob("*.json") if p.stem != "editions")

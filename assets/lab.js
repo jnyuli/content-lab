@@ -13,6 +13,7 @@
     var fb = function () { var ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.left = '-9999px'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) { toast('Select and copy manually'); } document.body.removeChild(ta); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fb); else fb();
   }
+  var FILM = { noface: 'No face', hands: 'Hands only', voice: 'Voiceover or text', camera: 'On camera' };
   var AUD = { clients: 'for clients', stylists: 'for stylists', both: 'for clients and stylists' };
 
   $('#week').textContent = E.week_label; $('#title').textContent = E.title || 'Content Lab'; $('#lede').textContent = E.lede || '';
@@ -22,8 +23,8 @@
   function plan(i) { return i.title.toUpperCase() + '\nHook: ' + i.hook + '\n\n' + i.steps.map(function (s, n) { return (n + 1) + '. ' + s; }).join('\n') + (i.guide && i.guide.shots ? '\n\nShots:\n' + i.guide.shots.map(function (s) { return '- ' + s; }).join('\n') : ''); }
   function card(i) {
     var r = i.ref || {}; var g = i.guide || {};
-    return '<article class="idea fold" id="' + esc(i.id) + '"><div class="head" role="button" tabindex="0" aria-expanded="false">' +
-      '<div class="cpv">' + esc(i.cpv) + ' · ' + esc(AUD[i.audience] || i.audience) + (i.experiment ? ' · <span class="exp">Original experiment</span>' : '') + '</div>' +
+    return '<article class="idea fold" id="' + esc(i.id) + '" data-f="' + esc((i.film || []).join(' ')) + '"><div class="head" data-n="' + ('0' + (ideas.indexOf(i) + 1)).slice(-2) + '" role="button" tabindex="0" aria-expanded="false">' +
+      '<div class="cpv">' + esc(i.cpv) + ' · ' + esc(AUD[i.audience] || i.audience) + ((i.film || []).length ? ' · <span class="film">' + i.film.map(function (f) { return esc(FILM[f] || f); }).join(' · ') + '</span>' : '') + (i.experiment ? ' · <span class="exp">Original experiment</span>' : '') + '</div>' +
       '<h2>' + esc(i.title) + '</h2>' +
       (i.principle ? '<p class="principle">' + esc(i.principle) + '</p>' : '') +
       (i.drivers ? '<p class="drivers">' + (i.format ? '<b>' + esc(i.format) + '</b> · ' : '') + i.drivers.map(esc).join(' · ') + '</p>' : '') +
@@ -79,11 +80,13 @@
   var T = E.trends; var tmax = T ? Math.max.apply(null, T.groups.reduce(function (a, g) { return a.concat(g.items.map(function (it) { return parseFloat(String(it[1]).replace(/[^0-9.]/g, '')) || 0; })); }, [])) : 1;
   var trends = T ? '<section class="idea trends"><div class="cpv">Trends · what clients type</div><h2>What clients are searching</h2><p class="principle">' + esc(T.intro) + '</p><div class="tgrid">' + T.groups.map(function (g) { var gmax = Math.max.apply(null, g.items.map(function (it) { return parseFloat(String(it[1]).replace(/[^0-9.]/g, '')) || 0; })) || 1; return '<div class="tg"><h3>' + esc(g.label) + '</h3><ul>' + g.items.map(function (it) { var v = parseFloat(String(it[1]).replace(/[^0-9.]/g, '')) || 0; return '<li><div class="trow"><span>' + esc(it[0]) + '</span><b>' + esc(it[1]) + '</b></div><div class="bar"><i style="width:' + Math.max(6, Math.round(v / gmax * 100)) + '%"></i></div></li>'; }).join('') + '</ul></div>'; }).join('') + '</div><div class="hook use"><b>The pattern</b>' + esc(T.takeaway) + '</div><p class="tsrc">Change in searches · ' + src([T.source]) + '</p></section>' : '';
   var ideaHead = (E.updates || E.trends) ? '<div class="eyebrow ideas-eyebrow">This week\'s ideas</div>' : '';
-  $('#ideas').innerHTML = upd + ideaHead + ideas.map(card).join('') + trends + (insp.length ? '<section class="fresh"><div class="eyebrow">Fresh inspiration</div><p class="lede small">From outside hair: one or two things happening in fashion, photography, design or culture, and one original way to use them. Experiments, not proven posts.</p>' + insp.map(icard).join('') + '</section>' : '');
+  var used = Object.keys(FILM).filter(function (k) { return ideas.some(function (i) { return (i.film || []).indexOf(k) > -1; }); });
+  var filters = used.length ? '<div class="filters" role="group" aria-label="Filter by how you like to film"><span class="lbl">Film it</span><button class="chip" type="button" data-f="all" aria-pressed="true">All ' + ideas.length + '</button>' + used.map(function (k) { return '<button class="chip" type="button" data-f="' + k + '" aria-pressed="false">' + FILM[k] + '</button>'; }).join('') + '</div><div class="fcount" id="fcount" aria-live="polite"></div>' : '';
+  $('#ideas').innerHTML = upd + ideaHead + filters + ideas.map(card).join('') + trends + (insp.length ? '<section class="fresh"><div class="eyebrow">Fresh inspiration</div><p class="lede small">From outside hair: one or two things happening in fashion, photography, design or culture, and one original way to use them. Experiments, not proven posts.</p>' + insp.map(icard).join('') + '</section>' : '');
   var all = ideas.concat(insp.map(function (x) { var a = x.application || {}; return { id: x.id, title: x.title, hook: a.hook, steps: a.steps || [], guide: a.guide }; }));
   $$('.idea.fold').forEach(function (a) {
     var h = $('.head', a), body = $('.body', a);
-    function toggle() { var open = body.hidden; body.hidden = !open; a.classList.toggle('open', open); h.setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) { $$('.ref', a).forEach(function (r) { if (window.__hydrate) window.__hydrate(r); }); } else { a.scrollIntoView({ block: 'nearest' }); } }
+    function toggle() { var open = body.hidden; if (open) { $$('.idea.fold.open').forEach(function (o) { if (o !== a) { $('.body', o).hidden = true; o.classList.remove('open'); $('.head', o).setAttribute('aria-expanded', 'false'); } }); } body.hidden = !open; a.classList.toggle('open', open); h.setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) { $$('.ref', a).forEach(function (r) { if (window.__hydrate) window.__hydrate(r); }); a.scrollIntoView({ block: 'start', behavior: 'smooth' }); } else { a.scrollIntoView({ block: 'nearest' }); } }
     h.addEventListener('click', toggle);
     h.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   });
@@ -118,4 +121,12 @@
     $$('.ref').forEach(function (r) { io.observe(r); });
   }
   if (location.hash) { var t = $(location.hash); if (t) t.scrollIntoView(); }
+  /* Film it filter */
+  function applyFilter(f) {
+    var n = 0;
+    $$('.idea.fold:not(.insp)').forEach(function (c) { var on = f === 'all' || (' ' + c.getAttribute('data-f') + ' ').indexOf(' ' + f + ' ') > -1; c.hidden = !on; if (on) n++; });
+    $$('.chip').forEach(function (ch) { ch.setAttribute('aria-pressed', ch.getAttribute('data-f') === f ? 'true' : 'false'); });
+    var fc = $('#fcount'); if (fc) fc.textContent = f === 'all' ? '' : 'Showing ' + n + ' of ' + ideas.length + ' ideas';
+  }
+  $$('.chip').forEach(function (ch) { ch.addEventListener('click', function () { applyFilter(ch.getAttribute('data-f')); }); });
 })();

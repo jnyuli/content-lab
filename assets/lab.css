@@ -187,3 +187,49 @@ header .lede{color:var(--hero-muted);margin:0;font-size:16px}
 .trends .hook.use{font-weight:400;border-left:2px solid var(--accent)}
 .trends .hook.use b{color:var(--muted)}
 .ideas-eyebrow{margin-bottom:12px}
+
+/* Draft 2026-11-13: compact idea rows (all 5 visible) + pronounced trends block */
+.idea.fold{margin-bottom:10px;border-radius:12px}
+.idea.fold .head{padding:14px 46px 14px 58px;border-radius:12px}
+.idea.fold:not(.insp) .head{padding-right:46px}
+.idea.fold:not(.insp) .head::after{left:18px;right:auto;top:15px;font-size:24px;color:var(--muted)}
+.idea .cpv{font-size:10.5px}
+.idea.fold .head h2,.idea h2{font-size:19px;margin:3px 0 0}
+.idea.fold:not(.open) .head .principle,.idea.fold:not(.open) .head .drivers{display:none}
+.idea.fold.open .head .principle{margin:12px 0 10px}
+.idea.fold.open .head .drivers{margin:0}
+.idea.fold .chev{position:absolute;right:18px;top:24px}
+.idea.fold .chev .o,.idea.fold .chev .c,.idea.fold.open .chev .c{display:none}
+.idea.fold.open .body{padding-top:4px}
+.idea.trends{background:var(--hero-bg);color:var(--hero-fg);border:0;border-radius:16px;padding:26px 20px 22px;margin-top:30px}
+.idea.trends .cpv{color:var(--hero-muted)}
+.idea.trends h2{font-size:30px;line-height:1;margin:8px 0 14px}
+.idea.trends .principle{color:var(--hero-fg);opacity:.85;border-left-color:var(--hero-muted);margin:0 0 20px}
+.idea.trends .tg h3{color:var(--hero-muted)}
+.idea.trends .trow span{color:var(--hero-fg)}
+.idea.trends .trow b{color:var(--hero-fg);font-size:24px}
+.idea.trends .bar{background:color-mix(in srgb,var(--hero-fg) 14%,transparent)}
+.idea.trends .bar i{background:var(--hero-fg)}
+.idea.trends .hook.use{background:color-mix(in srgb,var(--hero-fg) 10%,transparent);color:var(--hero-fg);border-left-color:var(--hero-fg);font-weight:700}
+.idea.trends .hook.use b{color:var(--hero-muted)}
+.idea.trends .tsrc,.idea.trends .tsrc a{color:var(--hero-muted)}
+
+/* simpler header: big title, small date, no intro line; no duplicate 'This week's ideas' label */
+header .lede:empty,.ideas-eyebrow{display:none}
+header{padding:22px 22px 24px}
+header h1{margin-bottom:0}
+
+/* Film it filter */
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px}
+.filters .lbl{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-right:2px}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.fcount{font-size:13px;color:var(--muted);margin:-4px 0 10px}
+.fcount:empty{display:none}
+.idea .cpv .film{color:var(--fg)}
+.idea.fold:not(.insp) .head[data-n]::after{content:attr(data-n)}
+
+.top .nav{display:flex;gap:16px;align-items:center}
+.editions .eyebrow{margin:8px 0 -4px}
+.editions .eyebrow.prev{margin-top:20px}
